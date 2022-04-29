@@ -15,33 +15,31 @@ library(rcongresso)
 processa_votos_camara <- function(votacoes) {
   source(here::here("crawler/votacoes/utils_votacoes.R"))
   source(here::here("crawler/votacoes/votos/fetcher_votos_camara.R"))
-  
-  proposicao_votacao <- votacoes %>% 
-    dplyr::filter(!is.na(id_sessao)) %>% 
-    dplyr::select(numero_proj_lei, id_proposicao, id_sessao, resumo, objeto_votacao)
 
-  votos <- purrr::pmap_dfr(list(proposicao_votacao$id_proposicao, 
+  proposicao_votacao <- votacoes %>%
+    dplyr::filter(!is.na(id_sessao)) %>%
+    dplyr::select(numero_proj_lei, id_proposicao, id_sessao, objeto_votacao)
+
+  votos <- purrr::pmap_dfr(list(proposicao_votacao$id_proposicao,
                                 proposicao_votacao$numero_proj_lei,
-                                proposicao_votacao$id_sessao, 
-                                proposicao_votacao$resumo,
-                                proposicao_votacao$objeto_votacao), 
-                    ~ fetch_votos_por_votacao_camara(..1, ..2, ..3, ..4, ..5))
+                                proposicao_votacao$id_sessao,
+                                proposicao_votacao$objeto_votacao),
+                    ~ fetch_votos_por_votacao_camara(..1, ..2, ..3, ..4))
 
   parlamentares_filepath = here::here("crawler/raw_data/parlamentares.csv")
-  
+
   if(file.exists(parlamentares_filepath)) {
     parlamentares <- readr::read_csv(parlamentares_filepath)
-    
+
   } else {
     # IDS das últimas duas legislaturas
-    legislaturas_list <- c(55,56)
     parlamentares <- purrr::map_df(legislaturas_list, ~ fetch_deputados(.x))
   }
 
-  votos_alt <- votos %>% 
+  votos_alt <- votos %>%
     dplyr::mutate(casa = "camara") %>%
-    dplyr::select(id_proposicao, id_votacao, id_parlamentar = id_deputado, casa, partido, voto) %>% 
-    enumera_voto() %>% 
+    dplyr::select(id_proposicao, id_votacao, id_parlamentar = id_deputado, casa, partido, voto) %>%
+    enumera_voto() %>%
     dplyr::distinct()
 
   return(votos_alt)
