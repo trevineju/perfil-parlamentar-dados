@@ -204,6 +204,7 @@ fetch_orientacao_from_xml_camara <- function(cod_sessao, hora, xml) {
 #' orientacoes <- fetch_orientacoes_por_proposicao_camara(2190355, 2019)
 fetch_orientacoes_por_proposicao_camara <- function(id_proposicao, ano = 2019) {
     library(tidyverse)
+    library(here)
     library(xml2)
     source(here("crawler/votacoes/utils_votacoes.R"))
     
