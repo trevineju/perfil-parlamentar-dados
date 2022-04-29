@@ -12,13 +12,13 @@ message("LEIA O README deste diretório")
 message("Use --help para mais informações\n")
 
 option_list = list(
-  make_option(c("-i", "--iniyear"), type="character", default="2015",
+  make_option(c("-i", "--iniyear"), type="character", default="2019",
               help="ano inicial das votações [default= %default]", metavar="character"),
-  
-  make_option(c("-e", "--endyear"), type="character", default="2019",
+
+  make_option(c("-e", "--endyear"), type="character", default="2022",
               help="ano final das votações [default= %default]", metavar="character"),
-  
-  make_option(c("-o", "--out"), type="character", default=here::here("crawler/raw_data/votacoes_nominais_15_a_19.csv"),
+
+  make_option(c("-o", "--out"), type="character", default=here::here("crawler/raw_data/votacoes_nominais_camara_19_a_22.csv"),
               help="nome do arquivo de saída [default= %default]", metavar="character")
 );
 
