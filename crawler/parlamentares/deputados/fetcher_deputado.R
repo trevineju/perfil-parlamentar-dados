@@ -1,6 +1,6 @@
 #' @title Baixa nome civil dos deputados
 #' @description Baixa nome civil dos deputados pelo id do parlamentar na Câmara.
-#' @param id_votacao id do deputado
+#' @param id_deputado id do deputado
 #' @return Dataframe informações de id e nome civil.
 #' @examples
 #' deputado <- fetch_deputado(73874)
@@ -8,28 +8,28 @@ fetch_deputado <- function(id_deputado) {
   print(paste0("Baixando informações do deputado de id ", id_deputado, "..."))
   url <- paste0("https://dadosabertos.camara.leg.br/api/v2/deputados/", id_deputado)
   deputado <- tryCatch({
-    data <-  RCurl::getURL(url) %>% 
-      jsonlite::fromJSON() %>% 
-      unlist() %>% t() %>% 
-      as.data.frame() 
-    
+    data <-  RCurl::getURL(url) %>%
+      jsonlite::fromJSON() %>%
+      unlist() %>% t() %>%
+      as.data.frame()
+
     if (!"dados.ultimoStatus.situacao" %in% names(data)) {
       data$dados.ultimoStatus.situacao = NA
     }
-    
+
     if (!"dados.escolaridade" %in% names(data)) {
       data$dados.escolaridade = NA
     }
-    
+
     if (!"dados.ultimoStatus.gabinete.email" %in% names(data)) {
       data$dados.ultimoStatus.gabinete.email = NA
     }
-    
-    data <- data %>% 
+
+    data <- data %>%
       dplyr::bind_cols(
-        extract_partido_informations(data$dados.ultimoStatus.uriPartido)) %>% 
-      mutate(casa = "camara") %>% 
-      select(id = dados.id, 
+        extract_partido_informations(data$dados.ultimoStatus.uriPartido)) %>%
+      mutate(casa = "camara") %>%
+      select(id = dados.id,
              casa,
              cpf = dados.cpf,
              nome_civil = dados.nomeCivil,
@@ -44,7 +44,7 @@ fetch_deputado <- function(id_deputado) {
              escolaridade = dados.escolaridade,
              email = dados.ultimoStatus.gabinete.email,
              data_nascimento = dados.dataNascimento) ## yyyy-mm-dd
-    
+
     return(data)
   }, error = function(e) {
     print(e)
@@ -53,7 +53,7 @@ fetch_deputado <- function(id_deputado) {
                     ~ grau_instrucao, ~ email, ~ data_nascimento)
     return(data)
   })
-  
+
   return(deputado)
 }
 
@@ -64,17 +64,17 @@ fetch_deputado <- function(id_deputado) {
 #' deputados <- fetch_deputados(56)
 fetch_deputados <- function(legislatura = 56) {
   url <- paste0("https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=", legislatura)
-  
-  ids_deputados <- 
+
+  ids_deputados <-
     (RCurl::getURL(url) %>%
-       jsonlite::fromJSON())$dados %>% 
+       jsonlite::fromJSON())$dados %>%
     select(id) %>% distinct()
-  
-  info_pessoais <- do.call("rbind", lapply(ids_deputados$id, 
+
+  info_pessoais <- do.call("rbind", lapply(ids_deputados$id,
                                            fetch_deputado))
-  return(info_pessoais %>% 
-           unique() %>% 
-           mutate_if(is.factor, as.character) %>% 
+  return(info_pessoais %>%
+           unique() %>%
+           mutate_if(is.factor, as.character) %>%
            mutate(id = as.integer(id),
                   legislatura = legislatura))
 }
@@ -87,43 +87,43 @@ fetch_deputados <- function(legislatura = 56) {
 #' extract_partido_informations("https://dadosabertos.camara.leg.br/api/v2/partidos/36835")
 extract_partido_informations <- function(url) {
   partido <- tryCatch({
-    data <-  RCurl::getURL(url) %>% 
-      jsonlite::fromJSON() %>% 
-      unlist() %>% t() %>% 
-      as.data.frame() %>% 
-      select(num_partido = dados.id, 
+    data <-  RCurl::getURL(url) %>%
+      jsonlite::fromJSON() %>%
+      unlist() %>% t() %>%
+      as.data.frame() %>%
+      select(num_partido = dados.id,
              partido = dados.nome)
   }, error = function(e) {
     data <- tribble(
       ~ num_partido, ~ partido)
     return(data)
   })
-  
+
   return (partido)
 }
 
 #' @title Importa dados de todos os deputados de uma legislatura específica utilizando backoff exponencial
-#' @description Importa os dados de todos os deputados federais de uma legislatura específica 
-#' utilizando backoff exponencial com 10 tentativas 
+#' @description Importa os dados de todos os deputados federais de uma legislatura específica
+#' utilizando backoff exponencial com 10 tentativas
 #' @return Dataframe contendo informações dos deputados: id, nome civil e cpf
 #' @examples
 #' deputados <- fetch_deputados_with_backoff(56)
 fetch_deputados_with_backoff <- function(legislatura = 56) {
   library(tidyverse)
   url <- paste0("https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=", legislatura)
-  
-  ids_deputados <- 
+
+  ids_deputados <-
     (RCurl::getURL(url) %>%
-       jsonlite::fromJSON())$dados %>% 
-    select(id) %>% distinct() %>% 
+       jsonlite::fromJSON())$dados %>%
+    select(id) %>% distinct() %>%
    rowid_to_column(var = 'indice')
-  
-  info_pessoais <- 
+
+  info_pessoais <-
     purrr::map_df(ids_deputados$id, ~ fetch_deputado_with_backoff(.x))
-    
-  return(info_pessoais %>% 
-           unique() %>% 
-           mutate_if(is.factor, as.character) %>% 
+
+  return(info_pessoais %>%
+           unique() %>%
+           mutate_if(is.factor, as.character) %>%
            mutate(id = as.integer(id),
                   legislatura = legislatura))
 }
@@ -138,33 +138,33 @@ fetch_deputados_with_backoff <- function(legislatura = 56) {
 fetch_deputado_with_backoff <- function(id_deputado, max_attempts = 10) {
   print(paste0("Baixando informações do deputado de id ", id_deputado, "..."))
   url <- paste0("https://dadosabertos.camara.leg.br/api/v2/deputados/", id_deputado)
-  
-  
+
+
   for (attempt_i in seq_len(max_attempts)) {
-  
+
     deputado <- tryCatch({
-      data <-  RCurl::getURL(url) %>% 
-        jsonlite::fromJSON() %>% 
-        unlist() %>% t() %>% 
-        as.data.frame() 
-      
+      data <-  RCurl::getURL(url) %>%
+        jsonlite::fromJSON() %>%
+        unlist() %>% t() %>%
+        as.data.frame()
+
       if (!"dados.ultimoStatus.situacao" %in% names(data)) {
         data$dados.ultimoStatus.situacao = NA
       }
-      
+
       if (!"dados.escolaridade" %in% names(data)) {
         data$dados.escolaridade = NA
       }
-      
+
       if (!"dados.ultimoStatus.gabinete.email" %in% names(data)) {
         data$dados.ultimoStatus.gabinete.email = NA
       }
-      
-      data <- data %>% 
+
+      data <- data %>%
         dplyr::bind_cols(
-          extract_partido_informations(data$dados.ultimoStatus.uriPartido)) %>% 
-        mutate(casa = "camara") %>% 
-        select(id = dados.id, 
+          extract_partido_informations(data$dados.ultimoStatus.uriPartido)) %>%
+        mutate(casa = "camara") %>%
+        select(id = dados.id,
                casa,
                cpf = dados.cpf,
                nome_civil = dados.nomeCivil,
@@ -179,7 +179,7 @@ fetch_deputado_with_backoff <- function(id_deputado, max_attempts = 10) {
                escolaridade = dados.escolaridade,
                email = dados.ultimoStatus.gabinete.email,
                data_nascimento = dados.dataNascimento) ## yyyy-mm-dd
-      
+
       return(data)
     }, error = function(e) {
       print(e)
@@ -188,7 +188,7 @@ fetch_deputado_with_backoff <- function(id_deputado, max_attempts = 10) {
                       ~ grau_instrucao, ~ email, ~ data_nascimento)
       return(data)
     })
-    
+
     if (nrow(deputado) == 0) {
       backoff <- runif(n = 1, min = 0, max = 2 ^ attempt_i - 1)
       message("Backing off for ", backoff, " seconds.")
@@ -197,6 +197,6 @@ fetch_deputado_with_backoff <- function(id_deputado, max_attempts = 10) {
       break
     }
   }
-  
+
   return(deputado)
 }
